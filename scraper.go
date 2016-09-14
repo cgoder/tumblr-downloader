@@ -24,6 +24,8 @@ import (
 const MaxQueueSize = 10000
 
 var (
+	// 匹配 "http://xx.media.tumblr.com/xxxx/tumblr_inline_xxxx" 的链接。
+	// ！！！ 这里应该匹配"http://xx.media.tumblr.com/xxxx/tumblr_xxxx" 更合理吧。！！！
 	inlineSearch   = regexp.MustCompile(`(http:\/\/\d{2}\.media\.tumblr\.com\/\w{32}\/tumblr_inline_\w+\.\w+)`) // FIXME: Possibly buggy/unoptimized.
 	videoSearch    = regexp.MustCompile(`"hdUrl":"(.*\/tumblr_\w+)"`)                                           // fuck it
 	altVideoSearch = regexp.MustCompile(`source src="(.*tumblr_\w+)(?:\/\d+)?" type`)
@@ -47,8 +49,10 @@ func TrimJS(c []byte) []byte {
 	return c[22 : len(c)-1]
 }
 
+//下载每个帖子post里的资源
 func parsePhotoPost(post Post) (files []File) {
-	var id string
+	var id string //纯娱乐变量？
+	//不忽略照片
 	if !cfg.IgnorePhotos {
 		if len(post.Photos) == 0 {
 			f := newFile(post.PhotoURL)
@@ -62,7 +66,7 @@ func parsePhotoPost(post Post) (files []File) {
 			}
 		}
 	}
-
+	//不忽略视频 GIF?
 	if !cfg.IgnoreVideos {
 		var slug string
 		if len(id) > 26 {
@@ -93,9 +97,9 @@ func parseRegularPost(post Post) (files []File) {
 
 func parseVideoPost(post Post) (files []File) {
 	if !cfg.IgnoreVideos {
-		post.Video = bytes.Replace(post.Video, []byte("\\"), []byte(""), -1)
-		regextest := videoSearch.FindStringSubmatch(string(post.Video))
-		if regextest == nil { // hdUrl is false. We have to get the other URL.
+		post.Video = bytes.Replace(post.Video, []byte("\\"), []byte(""), -1) // 将链接里的\\全部删除
+		regextest := videoSearch.FindStringSubmatch(string(post.Video))      //检查正则表达式合法性
+		if regextest == nil {                                                // hdUrl is false. We have to get the other URL.
 			regextest = altVideoSearch.FindStringSubmatch(string(post.Video))
 		}
 
@@ -169,10 +173,11 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 
 	var once sync.Once
 	u.fileChannel = make(chan File, MaxQueueSize)
-
+	//创建一个goroutine来遍历出所有的blog post
 	go func() {
 
 		done := make(chan struct{})
+		// 匿函数。用于关闭通道。
 		closeDone := func() { close(done) }
 		var i, numPosts int
 
@@ -234,20 +239,20 @@ func scrape(u *User, limiter <-chan time.Time) <-chan File {
 			u.scrapeWg.Add(1)
 
 			defer u.scrapeWg.Done()
-
+			//循环下载一篇blog里的所有文件。
 			for _, post := range blog.Posts {
 				id, err := post.ID.Int64()
 				if err != nil {
 					log.Println(err)
 				}
-
+				// 更新最大的post id.
 				u.updateHighestPost(id)
 
 				if !cfg.ForceCheck && id <= u.lastPostID {
 					once.Do(closeDone)
 					return
 				}
-
+				//下载blog post里的单个文件。有的blog post里会有多张图片。
 				u.Queue(post)
 
 			} // Done searching all posts on a page

@@ -31,6 +31,7 @@ func newFile(URL string) File {
 	}
 }
 
+//下载单个文件，已获取到真实下载地址f.URL
 // Download downloads a file specified in the file's URL.
 func (f File) Download() {
 	filepath := path.Join(cfg.DownloadDirectory, f.User.String(), path.Base(f.Filename))

@@ -14,8 +14,8 @@ type Post struct {
 	// bug on tumblr's end?
 	ID            json.Number `json:",Number"`
 	Type          string
-	PhotoURL      string `json:"photo-url-1280"`
-	Photos        []Post `json:"photos,omitempty"`
+	PhotoURL      string `json:"photo-url-1280"`   //photo url。如果一个帖子里只有一张照片.
+	Photos        []Post `json:"photos,omitempty"` // 如果一个帖子里有多张照片。
 	UnixTimestamp int64  `json:"unix-timestamp"`
 	PhotoCaption  string `json:"photo-caption"`
 

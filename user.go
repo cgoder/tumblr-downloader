@@ -203,6 +203,7 @@ func (u *User) GetStatus() string {
 		" ( ", u.filesProcessed, "/", u.filesFound, " )", isLimited)
 }
 
+//下载单个文件.同时检测是否已经存在此文件。
 func (u *User) ProcessFile(f File, timestamp int64) {
 	pathname := path.Join(cfg.DownloadDirectory, u.name, f.Filename)
 
@@ -215,14 +216,16 @@ func (u *User) ProcessFile(f File, timestamp int64) {
 		u.downloadWg.Done()
 		return
 	}
+	//将file添加到待下载tracker队列里，并启动goroutine来等待下载完成后做扫尾工作。
 	if FileTracker.Add(f.Filename, pathname) {
 		go func(oldfile, newfile string) {
 			// Wait until the file is downloaded.
 
+			//等待下载文件完成。见f.Download()
 			// fmt.Println(f.User, "Waiting for hardlink")
 			FileTracker.WaitForDownload(oldfile)
 			// fmt.Println(f.User, "Hardlinking")
-
+			//将下载文件与路径关联起来
 			FileTracker.Link(oldfile, newfile)
 			u.downloadWg.Done()
 
